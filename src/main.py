@@ -10,6 +10,7 @@ from parser import (
     parse_all_packages,
     parse_test_repo,
 )
+from visualizer import build_plantuml, save_graph_svg
 
 
 def print_graph(graph: dict[str, list[str]]) -> None:
@@ -49,11 +50,17 @@ def main() -> int:
     try:
         config = parse_config()
         graph = resolve_graph(config)
+        pkg = str(config["package"])
         if config["load_order"]:
-            order = get_load_order(str(config["package"]), graph)
-            print_load_order(order)
+            print_load_order(get_load_order(pkg, graph))
         else:
             print_graph(graph)
+
+        puml_text = build_plantuml(pkg, graph)
+        print("\nPlantUML описание:\n" + puml_text)
+        output_file = str(config["output"])
+        save_graph_svg(puml_text, output_file)
+        print(f"\nИзображение графа сохранено в файл: {output_file}")
     except Exception as err:
         print(f"Ошибка выполнения: {err}", file=sys.stderr)
         return 1
