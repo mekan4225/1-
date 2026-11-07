@@ -2,7 +2,7 @@
 
 import sys
 from cli import parse_config
-from graph import build_dependency_graph
+from graph import build_dependency_graph, get_load_order
 from parser import (
     download_apkindex,
     extract_apkindex_text,
@@ -18,6 +18,13 @@ def print_graph(graph: dict[str, list[str]]) -> None:
     for pkg, deps in graph.items():
         deps_str = ", ".join(deps) if deps else "(нет)"
         print(f"  {pkg} -> {deps_str}")
+
+
+def print_load_order(order: list[str]) -> None:
+    """Выводит порядок загрузки зависимостей на экран."""
+    print("Порядок загрузки зависимостей:")
+    for idx, pkg in enumerate(order, start=1):
+        print(f"  {idx}. {pkg}")
 
 
 def resolve_graph(config: dict[str, str | bool]) -> dict[str, list[str]]:
@@ -42,7 +49,11 @@ def main() -> int:
     try:
         config = parse_config()
         graph = resolve_graph(config)
-        print_graph(graph)
+        if config["load_order"]:
+            order = get_load_order(str(config["package"]), graph)
+            print_load_order(order)
+        else:
+            print_graph(graph)
     except Exception as err:
         print(f"Ошибка выполнения: {err}", file=sys.stderr)
         return 1
