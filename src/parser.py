@@ -51,6 +51,25 @@ def parse_dependencies(deps_line: str) -> list[str]:
     return result
 
 
+def parse_all_packages(index_text: str) -> dict[str, list[str]]:
+    """Строит карту зависимостей всех пакетов из текста APKINDEX."""
+    packages: dict[str, list[str]] = {}
+    pkg, deps = "", ""
+    for raw_line in index_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            if pkg:
+                packages.setdefault(pkg, parse_dependencies(deps))
+            pkg, deps = "", ""
+        elif line.startswith("P:"):
+            pkg = line[2:]
+        elif line.startswith("D:"):
+            deps = line[2:]
+    if pkg:
+        packages.setdefault(pkg, parse_dependencies(deps))
+    return packages
+
+
 def get_direct_deps(
     index_text: str, target_pkg: str, target_ver: str
 ) -> list[str]:
@@ -71,3 +90,22 @@ def get_direct_deps(
     if pkg == target_pkg and ver == target_ver:
         return parse_dependencies(deps)
     raise ValueError(f"Пакет {target_pkg} версии {target_ver} не найден.")
+
+
+def parse_test_repo(file_path: str) -> dict[str, list[str]]:
+    """Читает тестовый граф зависимостей из текстового файла."""
+    graph: dict[str, list[str]] = {}
+    with open(file_path, "r", encoding="utf-8") as file:
+        for raw_line in file:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" not in line:
+                raise ValueError(f"Некорректная строка в файле: {line}")
+            pkg_part, deps_part = line.split(":", 1)
+            pkg_name = pkg_part.strip()
+            if not pkg_name.isupper() or not pkg_name.isalpha():
+                raise ValueError(f"Некорректное имя пакета: {pkg_name}")
+            deps = [d.strip() for d in deps_part.split() if d.strip()]
+            graph[pkg_name] = deps
+    return graph
