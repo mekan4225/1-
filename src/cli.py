@@ -54,6 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output", default="graph.svg", help="Имя выходного SVG-файла."
     )
+    parser.add_argument(
+        "--load-order",
+        action="store_true",
+        help="Вывести порядок загрузки зависимостей.",
+    )
     return parser
 
 
@@ -67,4 +72,5 @@ def parse_config(argv: list[str] | None = None) -> dict[str, str | bool]:
         "test_mode": bool(args.test_mode),
         "version": validate_non_empty(args.version, "version"),
         "output": validate_output(args.output),
+        "load_order": bool(args.load_order),
     }
