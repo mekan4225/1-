@@ -2,44 +2,50 @@
 
 import sys
 from cli import parse_config
-from parser import download_apkindex, extract_apkindex_text, get_direct_deps
+from graph import build_dependency_graph
+from parser import (
+    download_apkindex,
+    extract_apkindex_text,
+    get_direct_deps,
+    parse_all_packages,
+    parse_test_repo,
+)
 
 
-def print_direct_deps(package: str, version: str, deps: list[str]) -> None:
-    """Выводит прямые зависимости пакета на экран."""
-    print(f"Прямые зависимости пакета {package} ({version}):")
-    if not deps:
-        print("  (зависимости отсутствуют)")
-        return
-    for dep in deps:
-        print(f"  - {dep}")
+def print_graph(graph: dict[str, list[str]]) -> None:
+    """Выводит построенный граф зависимостей на экран."""
+    print("Граф зависимостей (BFS):")
+    for pkg, deps in graph.items():
+        deps_str = ", ".join(deps) if deps else "(нет)"
+        print(f"  {pkg} -> {deps_str}")
+
+
+def resolve_graph(config: dict[str, str | bool]) -> dict[str, list[str]]:
+    """Загружает данные и строит граф зависимостей по конфигурации."""
+    pkg = str(config["package"])
+    repo = str(config["repo"])
+    if config["test_mode"]:
+        repo_map = parse_test_repo(repo)
+        if pkg not in repo_map:
+            raise ValueError(f"Пакет {pkg} не найден в тестовом файле.")
+        return build_dependency_graph(pkg, repo_map)
+
+    archive = download_apkindex(repo)
+    index_text = extract_apkindex_text(archive)
+    direct = get_direct_deps(index_text, pkg, str(config["version"]))
+    repo_map = parse_all_packages(index_text)
+    return build_dependency_graph(pkg, repo_map, direct)
 
 
 def main() -> int:
     """Основная функция запуска приложения."""
     try:
         config = parse_config()
-    except ValueError as err:
-        print(f"Ошибка конфигурации: {err}", file=sys.stderr)
-        return 1
-
-    if config["test_mode"]:
-        print("Режим тестирования будет добавлен на Этапе 3.")
-        return 0
-
-    try:
-        archive = download_apkindex(str(config["repo"]))
-        index_text = extract_apkindex_text(archive)
-        deps = get_direct_deps(
-            index_text, str(config["package"]), str(config["version"])
-        )
-        print_direct_deps(
-            str(config["package"]), str(config["version"]), deps
-        )
+        graph = resolve_graph(config)
+        print_graph(graph)
     except Exception as err:
-        print(f"Ошибка получения данных: {err}", file=sys.stderr)
+        print(f"Ошибка выполнения: {err}", file=sys.stderr)
         return 1
-
     return 0
 
 
