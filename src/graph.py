@@ -1,4 +1,4 @@
-"""Модуль построения графа зависимостей с использованием BFS без рекурсии."""
+"""Модуль построения графа зависимостей и расчета порядка загрузки."""
 
 from collections import deque
 
@@ -27,3 +27,28 @@ def build_dependency_graph(
                 queue.append(dep)
 
     return graph
+
+
+def get_load_order(
+    root_pkg: str, graph: dict[str, list[str]]
+) -> list[str]:
+    """Возвращает порядок загрузки пакетов (зависимости раньше пакета)."""
+    order: list[str] = []
+    visited: set[str] = set()
+    stack: list[tuple[str, bool]] = [(root_pkg, False)]
+
+    while stack:
+        node, processed = stack.pop()
+        if processed:
+            if node not in order:
+                order.append(node)
+            continue
+        if node in visited:
+            continue
+        visited.add(node)
+        stack.append((node, True))
+        for dep in reversed(graph.get(node, [])):
+            if dep not in visited:
+                stack.append((dep, False))
+
+    return order
